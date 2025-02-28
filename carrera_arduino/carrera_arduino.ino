@@ -1,10 +1,10 @@
 
 
 //const int bahn1 = 7;
-const int bahn2 = 6;
-const int sensors[4] = {2,3,4,5};
-volatile byte LS_Werte[4] = {0,0,0,0};
-volatile byte Abschnitt_speed[4] = {0,0,0,255};
+const int bahn2 = 7;
+const int sensors[5] = {2,3,4,5,6};
+volatile byte LS_Werte[5] = {0,0,0,0,0};
+volatile byte Abschnitt_speed[5] = {0,0,0,0,0};
 bool autoAn = true;
 bool kurve = false;
 unsigned long t1 = 0;
@@ -20,14 +20,14 @@ String receivedData = "";
 //#define DEBUG 
 
 void speedwerte_von_processing(String input) {
-  // Überprüfen, ob die Daten mit "speeds :" beginnen
+  Serial.println( input.c_str() );
   if (input.startsWith("speeds :")) {
     input = input.substring(8); // Entferne "speeds :" aus dem String
     input.trim();               // Entferne führende und nachgestellte Leerzeichen
     
     // Teile den String anhand der Leerzeichen in Werte auf
     int index = 0;
-    while (input.length() > 0 && index < 4) {
+    while (input.length() > 0 && index < 5) {
       int splitIndex = input.indexOf(' '); // Finde die nächste Leerstelle
       String value;
       if (splitIndex == -1) { // Kein Leerzeichen mehr, letzter Wert
@@ -65,7 +65,7 @@ void speedwerte_von_processing(String input) {
 
   else if (input.startsWith("start")) {
     
-    speed_automatic = 100;
+    speed_automatic = 120;
     analogWrite(bahn2, speed_automatic);
     
     Serial.println();
@@ -76,9 +76,10 @@ void speedwerte_von_processing(String input) {
 
   // Debug-Ausgabe
   Serial.print("Abschnitt_speed: ");
-  for (int i = 0; i < 4; i++) {
+  for (int i = 0; i < 5; i++) {
     Serial.print(Abschnitt_speed[i]);
-    if (i < 3) Serial.print(", ");
+
+    if (i < 4) Serial.print(", ");
   }
   Serial.println();
 }
@@ -113,17 +114,18 @@ void lichtschranke() {
 
 ISR(TIMER1_COMPA_vect) {
   digitalWrite(LED_BUILTIN, !digitalRead(LED_BUILTIN)); 
-  for (int i = 0; i < 4; i++) {
+  for (int i = 0; i < 5; i++) {
     LS_Werte[i] = digitalRead(i+2);
   #ifdef DEBUG
     Serial.print(LS_Werte[i]);
     Serial.print( "\t");
   #endif
-    if (LS_Werte[5] == 1)
+    if (LS_Werte[i] == 1)
     {
       speed_automatic = Abschnitt_speed[i];
-      break;
+      analogWrite(bahn2, speed_automatic);
     }
+
   }
   #ifdef DEBUG
     Serial.println( "");
@@ -173,12 +175,10 @@ void loop() {
   while (Serial2.available() > 0) {
     // Zeichen aus Serial2 lesen
     char receivedChar = Serial2.read();
-    Serial.println("Test1"); // Debug-Ausgabe
     // Zeichen anhängen, solange kein Zeilenumbruch kommt
     if (receivedChar == '\n') {
       // Gesamte Nachricht verarbeiten
       speedwerte_von_processing(receivedData);
-      Serial.println("Test"); // Debug-Ausgabe
       receivedData = "";      // Buffer leeren
     } else {
       receivedData += receivedChar; // Zeichen an den String anhängen
@@ -186,6 +186,8 @@ void loop() {
   }
   //int speedIn = analogRead(A0);
 
+   Serial2.println(speed_automatic);
+  
   
   //Serial.println(" 0 2");
     
@@ -211,10 +213,10 @@ void loop() {
     Serial.println(speed);
 
    // analogWrite(bahn2, 255 );
-  }
+  }slider
   else*/
   {
-    for (int s=0; s<4; s++)
+    /*for (int s=0; s<5; s++)
     {
       if (LS_Werte[s] == 1)
       {
@@ -223,6 +225,7 @@ void loop() {
       }   
     }
     analogWrite(bahn2, speed_automatic);
+    */
     //Serial.print("auto ");
     //Serial.print(speedIn);
     //Serial.print(" ");

@@ -6,15 +6,15 @@ Serial myPort;
 String portName;
 
 // Steuerungsvariablen
-float speed = 0;
-float maxSpeed = 10;
+float speed = 200;
+float maxSpeed = 255;
 boolean connected = false;
 
 // ControlP5 GUI-Elemente
 ControlP5 cp5;
 DropdownList portList;
 Button connectButton, sendButton, stopButton, startButton;
-Slider slider1, slider2, slider3, slider4;
+Slider slider1, slider2, slider3, slider4, slider5;
 
 void setup() {
   size(1000, 500); // Breiterer Sketch für Tachometer und GUI
@@ -69,21 +69,28 @@ void setup() {
   
   slider2 = cp5.addSlider("V2")
                .setLabel("Kurve Ende")  // Label setzen
-               .setPosition(10, 70)
+               .setPosition(10, 60)
                .setSize(200, 20)
                .setRange(0, 255)
                .moveTo(sliderGroup);
   
   slider3 = cp5.addSlider("V3")
                .setLabel("Rampe")  // Label setzen
-               .setPosition(10, 120)
+               .setPosition(10, 100)
                .setSize(200, 20)
                .setRange(0, 255)
                .moveTo(sliderGroup);
   
   slider4 = cp5.addSlider("V4")
+               .setLabel("Looping Ende")  // Label setzen
+               .setPosition(10, 140)
+               .setSize(200, 20)
+               .setRange(0, 255)
+               .moveTo(sliderGroup);
+               
+  slider5 = cp5.addSlider("V5")
                .setLabel("Kurve Anfang")  // Label setzen
-               .setPosition(10, 170)
+               .setPosition(10, 180)
                .setSize(200, 20)
                .setRange(0, 255)
                .moveTo(sliderGroup);
@@ -121,7 +128,7 @@ void draw() {
   text(nf(speed, 1, 2) + " km/h", 500, 300); // Geschwindigkeit anzeigen
 
   // Zeiger zeichnen
-  float angle = map(speed, 0, maxSpeed, -PI, 0);
+  float angle = speed; //map(speed, 0, maxSpeed, -PI, 0);
   stroke(255, 0, 0);
   strokeWeight(4);
   line(500, 200, 500 + cos(angle) * 100, 200 + sin(angle) * 100);
@@ -130,8 +137,8 @@ void draw() {
   stroke(0);
   strokeWeight(1);
   textSize(14);
-  for (int i = 0; i <= 10; i++) { // 10 Teilstriche für die Skala
-    float a = map(i, 0, 10, -PI, 0); // Winkel für jeden Teilstrich
+  for (int i = 0; i <= 255; i+=10) { // 255 Teilstriche für die Skala
+    float a = map(i, 0, 255, -PI, 0); // Winkel für jeden Teilstrich
     float x1 = 500 + cos(a) * 130;  // Äußerer Punkt des Teilstrichs
     float y1 = 200 + sin(a) * 130;
     float x2 = 500 + cos(a) * 110;  // Innerer Punkt des Teilstrichs
@@ -142,7 +149,7 @@ void draw() {
     float tx = 500 + cos(a) * 150;
     float ty = 200 + sin(a) * 150;
     textAlign(CENTER, CENTER);
-    text(i * 2, tx, ty); // Werte in 2er-Schritten anzeigen
+    text(i , tx, ty); // Werte in 2er-Schritten anzeigen
   }
 
   // Verbindungsstatus anzeigen
@@ -184,8 +191,9 @@ public void sendData() {
     int v2 = (int) slider2.getValue();
     int v3 = (int) slider3.getValue();
     int v4 = (int) slider4.getValue();
+    int v5 = (int) slider5.getValue();
 
-    String protocol = "speeds :" + v1 + " " + v2 + " " + v3 + " " + v4;
+    String protocol = "speeds :" + v1 + " " + v2 + " " + v3 + " " + v4 + " " +v5;
     myPort.write(protocol + "\n");
     println("Gesendet: " + protocol);
   } else {
