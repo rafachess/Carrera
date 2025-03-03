@@ -128,7 +128,7 @@ void draw() {
   text(nf(speed, 1, 2) + " km/h", 500, 300); // Geschwindigkeit anzeigen
 
   // Zeiger zeichnen
-  float angle = speed; //map(speed, 0, maxSpeed, -PI, 0);
+  float angle = -PI * 2;// speed; //map(speed, 0, maxSpeed, -PI, 0);
   stroke(255, 0, 0);
   strokeWeight(4);
   line(500, 200, 500 + cos(angle) * 100, 200 + sin(angle) * 100);
