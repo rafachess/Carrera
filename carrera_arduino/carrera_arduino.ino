@@ -1,33 +1,89 @@
+// Rafael Heinitz, Lukas Herb
+// Jugen  Forscht 2025
+// Carrera-Projekt
+// Version 1.0
 
 
-//const int bahn1 = 7;
-const int bahn2 = 7;
-const int sensors[5] = {2,3,4,5,6};
-volatile byte LS_Werte[5] = {0,0,0,0,0};
-volatile byte Abschnitt_speed[5] = {0,0,0,0,0};
-bool autoAn = true;
-bool kurve = false;
-unsigned long t1 = 0;
-unsigned long t2 = 0;
-float s = 2.28;
-float v = 0;
-int sollGeschwindigkeit = 7.9;
-int speed = 0;
-int speed_automatic = 0;
-bool start =false;
-String receivedData = "";
+bool TestPrint=false;                                         // Zum Steuern von Testausgabe der Werte
 
-//#define DEBUG 
+const int BahnPin = 7;                                        // Arduino-Pin für PWM
+int StartSpeed = 120;                                         // Konstante für Anfangsgeschwindigkeit
+volatile int FahrtWatchDog = 0;                               // Watch-Dog Zähler. Zum Stoppen, wenn keine LS nach 2s ausgelöst
+volatile bool StopWunsch = false;                             // Stop-Knopf in Prozessing signalisiert nur den Stop-Wunsch
+                                                              // Stoppen im Looping oder Steilkurve ist jedoch gefährlich
+const int StopLS= 4;                                          // Lichtschranke, nach der gestoppt wird (bei Stop-Wunsch)
 
-void speedwerte_von_processing(String input) {
-  Serial.println( input.c_str() );
+const int Sensoren[] = {2,3,4,5,6};                           // Arduino Pins, wo die Sensoren angeschlossen sind
+
+volatile byte LS_Werte[] = {0,0,0,0,0};                       // Werte der Sensoren (an/aus)
+volatile byte Abschnitt_speed[] = {0,0,0,0,0};                // Geschwindigkeit, die nach den jeweiligen Sensor gesetzt wird
+
+const int SensorenAnz = sizeof( Sensoren ) / sizeof(Sensoren[0]); // Automatische Berechnung der Anzahl der Sensoren
+
+volatile int AktSpeed = 0;                                    // Aktuelle Geschwindigkeit
+
+void speedwerte_von_processing(String input);                 // Funktion zum Auswerten der Processing-Nachrichten
+
+
+void setup()                                                  // Arduino Setup-Funktion. Wird ein Mal beim Reset ausgeführt
+{
+  analogWrite(BahnPin, 0);                                    // Auto stoppen
+  pinMode(LED_BUILTIN, OUTPUT);                               // Das eingebaute LED als Ausgang konfigurieren (zum Testen von Timer-Interrupt)
+  Serial.begin(9600);                                          
+  Serial2.begin(2400);
+  pinMode(BahnPin, OUTPUT);                                   // Bahn-Pin als Ausgang konfigurieren
+  for (int s : Sensoren)                                      // Alle Sensoren als Eingänge konfigurieren
+  {
+    pinMode(s, INPUT_PULLUP);                                 
+  }
+
+                                                              // Timer-Interrupt mit 1ms Periode konfigurieren
+  noInterrupts();                                             // Weiterhin folgt eine Magie, die micht mal ChatGPT
+  TCCR1A = 0;                                                 // beherrscht. 
+  TCCR1B = 0;                                                 // ChatGPT hat die Periode immer zu hoch eingestellt. 
+  TCNT1  = 0;                                                 // Erst durch Blinken der eingebauten LED im Timer-Interrupt  
+
+  OCR1A = 16000;                                              // habe ich festgestellt, dass die PEriode nicht 1ms war
+  TCCR1B |= (1 << WGM12);                                     // Durch die Recherche in den Foren bin ich auf diese
+  TCCR1B |= (1 << CS10);                                      // Einstellungen gekommen.
+  TIMSK1 |= (1 << OCIE1A);    
+  interrupts();                                               // Timer-Interrupt Einstellung für 1ms fertig
+
+  Serial.print("Setup Ende");
+}
+
+
+void loop() {                                                 // Arduino Endlosschleife
+  while (Serial2.available() > 0) {                           // Falls Daten von Prozessing ...
+    static String NachrichtVonProcessing = "";                // Eine Textvariable zum Speichern der Nachricht   
+        
+    char receivedChar = Serial2.read();                       // Zeichen aus Serial2 lesen
+    if (receivedChar == '\n') {                               // Wenn Return...      
+      speedwerte_von_processing(NachrichtVonProcessing);      // ...dann ist Nachricht komplett -> bearbeiten, interpretieren
+      NachrichtVonProcessing = "";                            // alte Nachricht löschen
+    } else {                                                  // Noch kein Return-Zeichen?  
+      NachrichtVonProcessing += receivedChar;                 // Zeichen zu der Nachricht-Variable hinzufügen
+    }
+  }
+
+  Serial2.println(AktSpeed);                                  // Sende aktuelle Geschwindigkeit an Processing
+  if ( TestPrint ) { Serial.println(AktSpeed); }               
+}
+
+
+void speedwerte_von_processing(String input) {                //Funktion interpretiert die NAchrichten von Processing
+  if ( TestPrint )
+  {
+    Serial.print( "Processing: " );
+    Serial.println( input.c_str() );
+  }
   if (input.startsWith("speeds :")) {
     input = input.substring(8); // Entferne "speeds :" aus dem String
     input.trim();               // Entferne führende und nachgestellte Leerzeichen
     
     // Teile den String anhand der Leerzeichen in Werte auf
     int index = 0;
-    while (input.length() > 0 && index < 5) {
+    while (input.length() > 0 && index < SensorenAnz) {
       int splitIndex = input.indexOf(' '); // Finde die nächste Leerstelle
       String value;
       if (splitIndex == -1) { // Kein Leerzeichen mehr, letzter Wert
@@ -40,224 +96,69 @@ void speedwerte_von_processing(String input) {
       value.trim(); // Entferne Leerzeichen von extrahiertem Wert
       int intValue = value.toInt(); // Konvertiere zu Integer
       if (intValue >= 0 && intValue <= 255) { // Gültigen Bereich prüfen
-        Abschnitt_speed[index] = (byte)intValue; // Im Array speichern
-        Serial.print(Abschnitt_speed[index]);
-        Serial.print(" ");
-        
+        Abschnitt_speed[index] = (byte)intValue; // Im Array speichern    
         index++;
       }
+    }    
+  }
+  else if (input.startsWith("stop")) {    
+    StopWunsch = true;    
+  }
+  else if (input.startsWith("start")) {    
+    StopWunsch = false;
+    FahrtWatchDog = 0;
+    AktSpeed = StartSpeed;
+    analogWrite(BahnPin, AktSpeed);    
+  }
+
+
+  if ( TestPrint )
+  {
+    Serial.print("Abschnitt_speed: ");
+    for (int i = 0; i < SensorenAnz; i++) {
+      Serial.print(Abschnitt_speed[i]);
+      Serial.print(", ");
     }
     Serial.println();
-
-
   }
-
-
-  else if (input.startsWith("stop")) {
-    
-    speed_automatic = 0;
-    analogWrite(bahn2, speed_automatic);
-    
-    Serial.println();
-
-
-  }
-
-  else if (input.startsWith("start")) {
-    
-    speed_automatic = 120;
-    analogWrite(bahn2, speed_automatic);
-    
-    Serial.println();
-
-
-  }
-
-
-  // Debug-Ausgabe
-  Serial.print("Abschnitt_speed: ");
-  for (int i = 0; i < 5; i++) {
-    Serial.print(Abschnitt_speed[i]);
-
-    if (i < 4) Serial.print(", ");
-  }
-  Serial.println();
 }
 
-void lichtschranke() {
-  if (t1 == 0) {
-    t1 = millis();
-  }
 
-  else if (millis()-t1 > 500)
+// Timer-Interrupt. 
+// Diese Funktion wird vom Arduino 
+// automatisch jede Millisekunde aufgerufen
+ISR(TIMER1_COMPA_vect) {                                         
+  digitalWrite(LED_BUILTIN, !digitalRead(LED_BUILTIN));      // Mit eingebauten LED jedes Mal blinken
+  FahrtWatchDog++;                                           // Watch-Dog Zähler erhöhen
+
+  if ( FahrtWatchDog >=2000 )                                // Nach 2 Sekunden Bahn ausschalten, walls Watch-Dog Zähler nicht resettet ist
   {
-    t2 = millis();
-    v = s/(t2-t1);
-
-    v *= 1000;
-
-   /* Serial.print("t1:");
-    Serial.print(t1);
-    Serial.print(", t2:");
-    Serial.print(t2);*/
-    Serial.print(" v:");
-    Serial.print(v*3.6);
-    Serial.println("km/h");
-    t1 = t2;
-    t2 = 0;
+    AktSpeed = 0;
   }
-  
-  
-  // Update the last event time every time the light barrier closes
-  //lastEventTime = millis();
-}
 
-ISR(TIMER1_COMPA_vect) {
-  digitalWrite(LED_BUILTIN, !digitalRead(LED_BUILTIN)); 
-  for (int i = 0; i < 5; i++) {
-    LS_Werte[i] = digitalRead(i+2);
-  #ifdef DEBUG
-    Serial.print(LS_Werte[i]);
-    Serial.print( "\t");
-  #endif
-    if (LS_Werte[i] == 1)
+  for (int i = 0; i < SensorenAnz; i++) {                    // Prüfe alle Sensoren
+    LS_Werte[i] = digitalRead(Sensoren[i]);
+  
+    if ( TestPrint )
     {
-      speed_automatic = Abschnitt_speed[i];
-      analogWrite(bahn2, speed_automatic);
+      Serial.print(LS_Werte[i]);
+      Serial.print( "\t");
     }
-
-  }
-  #ifdef DEBUG
-    Serial.println( "");
-  #endif
-}
-
-
-// Geschwindigkeitseinstellungen
-int speedFast = 255; // Schnelle Geschwindigkeit (0-255)
-int speedMedium = 150; // Mittlere Geschwindigkeit (0-255)
-int speedSlow = 120; // Langsame Geschwindigkeit (0-255)
-
-void setup() 
-{
-  //analogWrite(bahn1, 0);
-  analogWrite(bahn2, 0);
-  pinMode(LED_BUILTIN, OUTPUT); 
-  Serial.begin(9600);
-  Serial2.begin(2400);
-  // Setze die Pins als Ausgang
-  //pinMode(bahn1, OUTPUT);
-  pinMode(bahn2, OUTPUT);
-  for (int s=2; s<6; s++)
-  {
-    pinMode(s, INPUT_PULLUP);
-  }
-  //attachInterrupt(digitalPinToInterrupt(sensor), lichtschranke, FALLING);
-
-  // Configure Timer1 for 10ms interval
-noInterrupts();           // disable all interrupts
-  TCCR1A = 0;
-  TCCR1B = 0;
-  TCNT1  = 0;
-
-  OCR1A = 16000;            // compare match register 16MHz/1000
-  TCCR1B |= (1 << WGM12);   // CTC mode
-  TCCR1B |= (1 << CS10);    // No prescaler 
-  TIMSK1 |= (1 << OCIE1A);  // enable timer compare interrupt
-  interrupts();             // Enable interrupts
-
-
-  Serial.print("ready");
-}
-
-int sp = 0;
-void loop() { 
-  while (Serial2.available() > 0) {
-    // Zeichen aus Serial2 lesen
-    char receivedChar = Serial2.read();
-    // Zeichen anhängen, solange kein Zeilenumbruch kommt
-    if (receivedChar == '\n') {
-      // Gesamte Nachricht verarbeiten
-      speedwerte_von_processing(receivedData);
-      receivedData = "";      // Buffer leeren
-    } else {
-      receivedData += receivedChar; // Zeichen an den String anhängen
-    }
-  }
-  //int speedIn = analogRead(A0);
-
-   Serial2.println(speed_automatic);
   
-  
-  //Serial.println(" 0 2");
-    
- /* if (speedIn > 100)
-  { 
-    speed = map( speedIn, 0, 1024, 0, 255);
-    float f = kurve ? 1.3 : 1;
-    sp = speed*f > 255? 255:speed*f;
-    
-    //Serial.print(t1);
-    //Serial.print(" ");
-    //Serial.println(t2);
-    //Serial.print(v*3.6);
-    //Serial.println("km/h");
-
-    //Sende zu Prozessing
-    Serial2.print(v*3.6);
-    Serial2.println("km/h");
-
-    Serial.print("hand ");
-    Serial.print(speedIn);
-    Serial.print(" ");
-    Serial.println(speed);
-
-   // analogWrite(bahn2, 255 );
-  }slider
-  else*/
-  {
-    /*for (int s=0; s<5; s++)
+    if (LS_Werte[i] == 1)                                     // Wenn Lichtschranke AN
     {
-      if (LS_Werte[s] == 1)
+      FahrtWatchDog = 0;                                      // Watch-Dog Zähler reset
+      if ( StopWunsch && (Sensoren[i]==StopLS) ){             // Wenn Stop-Wunsch und entsprechende Lichtschranke   ...
+        AktSpeed = 0;                                         //  -> Stop     
+      }
+      else
       {
-        speed_automatic = Abschnitt_speed[s];
-        break;
-      }   
+        AktSpeed = Abschnitt_speed[i];                        // Ansonsten übernehe die Abschnittsgeschwindigkeit
+      }
     }
-    analogWrite(bahn2, speed_automatic);
-    */
-    //Serial.print("auto ");
-    //Serial.print(speedIn);
-    //Serial.print(" ");
-    Serial.println(speed_automatic);
-
+    analogWrite(BahnPin, AktSpeed);                           // Setze PWM
   }
   
+  if ( TestPrint ) { Serial.println( "");  }
 
-  /*if (v*3.6 < sollGeschwindigkeit*0.95)
-  {
-    sp = sp + 1;
-  }
-
-  else if (v*3.6>sollGeschwindigkeit*1.05)
-  {
-    sp = sp - 1;
-  }*/
 }
-/*void processReceivedData(String data) {
-  // Daten (CSV-Format) verarbeiten
-  int firstComma = data.indexOf(',');
-  if ( data.substring(0, firstComma) == "1")
-  {
-    speed = 75;
-  }
-
-  int lastIndex = firstComma;
-  for (int i = 0; i < 4; i++) {
-    int nextComma = data.indexOf(',', lastIndex + 1);
-    if (nextComma == -1) nextComma = data.length();
-    Abschnitt_speed[i] = data.substring(lastIndex + 1, nextComma).toInt();
-    lastIndex = nextComma;
-  }
-}*/
-
