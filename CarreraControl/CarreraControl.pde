@@ -6,7 +6,7 @@ Serial myPort;
 String portName;
 
 // Steuerungsvariablen
-float speed = 200;
+float speed = 0;
 float maxSpeed = 255;
 boolean connected = false;
 
@@ -53,7 +53,7 @@ void setup() {
 
   // Schieberegler und Knopf rechts vom Tachometer
   Group sliderGroup = cp5.addGroup("sliderGroup")
-                          .setLabel("Schieberegler-Werte")
+                          .setLabel("Abschnittsgeschwindigkeiten")
                           .setPosition(670, 20)
                           .setSize(300, 400)
                           .setBackgroundColor(color(0,120,0))
@@ -107,11 +107,13 @@ void setup() {
                   .setSize(200, 30)
                   .moveTo(sliderGroup);
   
-   startButton = cp5.addButton("start")
+  startButton = cp5.addButton("start")
                   .setLabel("Start")
                   .setPosition(10, 330)
                   .setSize(200, 30)
                   .moveTo(sliderGroup);
+                  
+  loadSliderValues();
   
 }
 
@@ -128,7 +130,7 @@ void draw() {
   text(nf(speed, 1, 2) + " km/h", 500, 300); // Geschwindigkeit anzeigen
 
   // Zeiger zeichnen
-  float angle = -PI * 2;// speed; //map(speed, 0, maxSpeed, -PI, 0);
+  float angle = map(speed, 0, maxSpeed, -PI, 0);
   stroke(255, 0, 0);
   strokeWeight(4);
   line(500, 200, 500 + cos(angle) * 100, 200 + sin(angle) * 100);
@@ -137,17 +139,17 @@ void draw() {
   stroke(0);
   strokeWeight(1);
   textSize(14);
-  for (int i = 0; i <= 255; i+=10) { // 255 Teilstriche für die Skala
+  for (int i = 0; i <= 255; i+=20) { // 255 Teilstriche für die Skala
     float a = map(i, 0, 255, -PI, 0); // Winkel für jeden Teilstrich
-    float x1 = 500 + cos(a) * 130;  // Äußerer Punkt des Teilstrichs
-    float y1 = 200 + sin(a) * 130;
-    float x2 = 500 + cos(a) * 110;  // Innerer Punkt des Teilstrichs
-    float y2 = 200 + sin(a) * 110;
+    float x1 = 500 + cos(a) * 110;  // Äußerer Punkt des Teilstrichs
+    float y1 = 200 + sin(a) * 110;
+    float x2 = 500 + cos(a) * 100;  // Innerer Punkt des Teilstrichs
+    float y2 = 200 + sin(a) * 100;
     line(x1, y1, x2, y2); // Teilstrich zeichnen
 
     // Zahlen auf der Skala zeichnen
-    float tx = 500 + cos(a) * 150;
-    float ty = 200 + sin(a) * 150;
+    float tx = 500 + cos(a) * 130;
+    float ty = 200 + sin(a) * 130;
     textAlign(CENTER, CENTER);
     text(i , tx, ty); // Werte in 2er-Schritten anzeigen
   }
@@ -196,8 +198,30 @@ public void sendData() {
     String protocol = "speeds :" + v1 + " " + v2 + " " + v3 + " " + v4 + " " +v5;
     myPort.write(protocol + "\n");
     println("Gesendet: " + protocol);
+    // Werte in Datei speichern
+    String saveData = v1 + "," + v2 + "," + v3 + "," + v4 + "," + v5;
+    saveStrings("carrera_werte.txt", new String[]{saveData});
+    println("Slider-Werte gespeichert: " + saveData);
   } else {
     println("Keine Verbindung zur seriellen Schnittstelle.");
+  }
+}
+
+void loadSliderValues() {
+  String[] loadedData = loadStrings("carrera_werte.txt");
+
+  if (loadedData != null && loadedData.length > 0) {
+    String[] values = split(loadedData[0], ',');
+    if (values.length == 5) {
+      slider1.setValue(float(values[0]));
+      slider2.setValue(float(values[1]));
+      slider3.setValue(float(values[2]));
+      slider4.setValue(float(values[3]));
+      slider5.setValue(float(values[4]));
+      println("Geladene Slider-Werte: " + loadedData[0]);
+    }
+  } else {
+    println("Keine gespeicherten Slider-Werte gefunden.");
   }
 }
 
@@ -226,6 +250,7 @@ public void start() {
 // Serielle Daten empfangen
 void serialEvent(Serial myPort) {
   String data = myPort.readStringUntil('\n');
+  println("Data von Arduino: " + data);
   if (data != null) {
     data = trim(data);
     try {
