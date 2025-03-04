@@ -98,7 +98,7 @@ void speedwerte_von_processing(String input) {                //Funktion interpr
       if (intValue >= 0 && intValue <= 255) { // Gültigen Bereich prüfen
         Abschnitt_speed[index] = (byte)intValue; // Im Array speichern    
         index++;
-      }  auto x;  
+      };  
     }    
   }
   else if (input.startsWith("stop")) {    
