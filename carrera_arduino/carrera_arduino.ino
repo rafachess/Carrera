@@ -32,7 +32,7 @@ void setup()                                                  // Arduino Setup-F
   Serial.begin(9600);                                          
   Serial2.begin(2400);
   pinMode(BahnPin, OUTPUT);                                   // Bahn-Pin als Ausgang konfigurieren
-  for (int s : Sensoren)                                      // Alle Sensoren als Eingänge konfigurieren
+  for (auto s : Sensoren)                                      // Alle Sensoren als Eingänge konfigurieren
   {
     pinMode(s, INPUT_PULLUP);                                 
   }
@@ -98,7 +98,7 @@ void speedwerte_von_processing(String input) {                //Funktion interpr
       if (intValue >= 0 && intValue <= 255) { // Gültigen Bereich prüfen
         Abschnitt_speed[index] = (byte)intValue; // Im Array speichern    
         index++;
-      }
+      }  auto x;  
     }    
   }
   else if (input.startsWith("stop")) {    
