@@ -1,4 +1,4 @@
-import processing.serial.*; //<>//
+import processing.serial.*; //<>// //<>// //<>// //<>// //<>// //<>//
 import controlP5.*;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
@@ -61,7 +61,6 @@ void setup() {
                           .setSize(300, 400)
                           .setBackgroundColor(color(0,120,0))
                           .setBackgroundHeight(400);
-
 
   slider1 = cp5.addSlider("V1")
                .setLabel("Loop")  // Label setzen
@@ -168,58 +167,42 @@ void draw() {
   }
 }
 
-// Verbindung herstellen
+// Verbindung herstellen oder trennen
 public void connect() {
-    String[] command = {"/bin/bash", "-c", "~/JuFo_Projekte/Carrera/CarreraControl/USB.sh"};
-/*  
-  try {
-    // Start the process (bash script)
-    ProcessBuilder pb = new ProcessBuilder(command);
-    Process process = pb.start();
-    
-    // Get the output stream (stdout) of the process
-    BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream())); //<>//
-    
-    // Read each line of output
-    portName = reader.readLine(); //<>//
-    print("Verbinde mit: " + portName);
-    myPort = new Serial(this, portName, 9600);
-    myPort.bufferUntil('\n');
-    connected = true; //<>//
-    println("Verbunden mit: " + portName);
-    
-    // Wait for the script to finish executing
-    int exitCode = process.waitFor();
-    println("Exit code: " + exitCode);
-    
-  } catch (IOException | InterruptedException e) {
-    e.printStackTrace();
-    println("Fehler beim Verbinden");
-  }
-*/
-  
-  int selectedIndex = (int) portList.getValue();
-  String[] ports = Serial.list();
-
-  if (selectedIndex >= 0 && selectedIndex < ports.length) { //<>//
-    try {
-      portName = ports[selectedIndex];
-      myPort = new Serial(this, portName, 9600);
-      myPort.bufferUntil('\n');
-      connected = true;
-      println("Verbunden mit: " + portName);
-    } catch (Exception e) {
-      println("Fehler beim Verbinden: " + e.getMessage());
-      connected = false;
+  if (connected) {
+    // Disconnect if already connected
+    if (myPort != null) {
+      myPort.stop();
+      myPort = null;
     }
+    connected = false;
+    connectButton.setLabel("Verbinden");  // Button zurück auf "Verbinden" setzen
+    println("Verbindung getrennt.");
   } else {
-    println("Ungültige Port-Auswahl");
+    int selectedIndex = (int) portList.getValue();
+    String[] ports = Serial.list();
+
+    if (selectedIndex >= 0 && selectedIndex < ports.length) {
+      try {
+        portName = ports[selectedIndex];
+        myPort = new Serial(this, portName, 9600);
+        myPort.bufferUntil('\n');
+        connected = true;
+        connectButton.setLabel("Trennen");  // Button zu "Trennen" ändern
+        println("Verbunden mit: " + portName);
+      } catch (Exception e) {
+        println("Fehler beim Verbinden: " + e.getMessage());
+        connected = false;
+      }
+    } else {
+      println("Ungültige Port-Auswahl");
+    }
   }
 }
 
 // Daten senden
 public void sendData() {
-  if (connected) { //<>//
+  if (connected) {
     int v1 = (int) slider1.getValue();
     int v2 = (int) slider2.getValue();
     int v3 = (int) slider3.getValue();
