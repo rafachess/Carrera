@@ -1,9 +1,12 @@
 import processing.serial.*; //<>//
 import controlP5.*;
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.io.IOException;
 
 // Serielle Schnittstelle
 Serial myPort;
-String portName;
+String portName="--";
 
 // Steuerungsvariablen
 float speed = 0;
@@ -75,7 +78,7 @@ void setup() {
                .moveTo(sliderGroup);
   
   slider3 = cp5.addSlider("V3")
-               .setLabel("Rampe")  // Label setzen
+               .setLabel("Steilkurve")  // Label setzen
                .setPosition(10, 100)
                .setSize(200, 20)
                .setRange(0, 255)
@@ -167,13 +170,41 @@ void draw() {
 
 // Verbindung herstellen
 public void connect() {
+    String[] command = {"/bin/bash", "-c", "~/JuFo_Projekte/Carrera/CarreraControl/USB.sh"};
+/*  
+  try {
+    // Start the process (bash script)
+    ProcessBuilder pb = new ProcessBuilder(command);
+    Process process = pb.start();
+    
+    // Get the output stream (stdout) of the process
+    BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream())); //<>//
+    
+    // Read each line of output
+    portName = reader.readLine(); //<>//
+    print("Verbinde mit: " + portName);
+    myPort = new Serial(this, portName, 9600);
+    myPort.bufferUntil('\n');
+    connected = true; //<>//
+    println("Verbunden mit: " + portName);
+    
+    // Wait for the script to finish executing
+    int exitCode = process.waitFor();
+    println("Exit code: " + exitCode);
+    
+  } catch (IOException | InterruptedException e) {
+    e.printStackTrace();
+    println("Fehler beim Verbinden");
+  }
+*/
+  
   int selectedIndex = (int) portList.getValue();
   String[] ports = Serial.list();
 
   if (selectedIndex >= 0 && selectedIndex < ports.length) { //<>//
     try {
       portName = ports[selectedIndex];
-      myPort = new Serial(this, portName, 2400);
+      myPort = new Serial(this, portName, 9600);
       myPort.bufferUntil('\n');
       connected = true;
       println("Verbunden mit: " + portName);
@@ -238,6 +269,7 @@ public void stop() {
 
 public void start() {
   if (connected) {
+    sendData();  // Immer davor aktuelle Werte setzen
     
     String protocol = "start" ;
     myPort.write(protocol + "\n");

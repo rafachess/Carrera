@@ -4,14 +4,18 @@
 // Version 1.0
 
 
-bool TestPrint=false;                                         // Zum Steuern von Testausgabe der Werte
+bool TestPrintSensoren=0;                                 // Zum Steuern von Testausgabe der Sensor-Werte
+bool TestPrintAktSpeed=1;                                  // Zum Steuern von Testausgabe der Akt Geschw. Werte
+bool TestPrint=0;                                          // Zum Steuern von Testausgabe der Werte
 
 const int BahnPin = 7;                                        // Arduino-Pin für PWM
 int StartSpeed = 120;                                         // Konstante für Anfangsgeschwindigkeit
 volatile int FahrtWatchDog = 0;                               // Watch-Dog Zähler. Zum Stoppen, wenn keine LS nach 2s ausgelöst
 volatile bool StopWunsch = false;                             // Stop-Knopf in Prozessing signalisiert nur den Stop-Wunsch
+volatile bool Gestoppt = false;                               // StopWunsch abgearbeitet. Wenn aus Trägheit weitere LS überquerrt wird, ignorieren
+
                                                               // Stoppen im Looping oder Steilkurve ist jedoch gefährlich
-const int StopLS= 4;                                          // Lichtschranke, nach der gestoppt wird (bei Stop-Wunsch)
+const int StopLS= 5;                                          // Lichtschranke, nach der gestoppt wird (bei Stop-Wunsch)
 
 const int Sensoren[] = {2,3,4,5,6};                           // Arduino Pins, wo die Sensoren angeschlossen sind
 
@@ -30,7 +34,7 @@ void setup()                                                  // Arduino Setup-F
   analogWrite(BahnPin, 0);                                    // Auto stoppen
   pinMode(LED_BUILTIN, OUTPUT);                               // Das eingebaute LED als Ausgang konfigurieren (zum Testen von Timer-Interrupt)
   Serial.begin(9600);                                          
-  Serial2.begin(2400);
+  Serial2.begin(9600);
   pinMode(BahnPin, OUTPUT);                                   // Bahn-Pin als Ausgang konfigurieren
   for (auto s : Sensoren)                                      // Alle Sensoren als Eingänge konfigurieren
   {
@@ -67,7 +71,7 @@ void loop() {                                                 // Arduino Endloss
   }
 
   Serial2.println(AktSpeed);                                  // Sende aktuelle Geschwindigkeit an Processing
-  if ( TestPrint ) { Serial.println(AktSpeed); }               
+  if ( TestPrintAktSpeed ) { Serial.println(AktSpeed); }               
 }
 
 
@@ -106,6 +110,7 @@ void speedwerte_von_processing(String input) {                //Funktion interpr
   }
   else if (input.startsWith("start")) {    
     StopWunsch = false;
+    Gestoppt = false;
     FahrtWatchDog = 0;
     AktSpeed = StartSpeed;
     analogWrite(BahnPin, AktSpeed);    
@@ -117,7 +122,10 @@ void speedwerte_von_processing(String input) {                //Funktion interpr
     Serial.print("Abschnitt_speed: ");
     for (int i = 0; i < SensorenAnz; i++) {
       Serial.print(Abschnitt_speed[i]);
-      Serial.print(", ");
+      Serial.print(", StopWunsch:");
+      Serial.print(StopWunsch);
+      Serial.print(", Stop:");
+      Serial.print(Gestoppt);
     }
     Serial.println();
   }
@@ -139,7 +147,7 @@ ISR(TIMER1_COMPA_vect) {
   for (int i = 0; i < SensorenAnz; i++) {                    // Prüfe alle Sensoren
     LS_Werte[i] = digitalRead(Sensoren[i]);
   
-    if ( TestPrint )
+    if ( TestPrintSensoren )
     {
       Serial.print(LS_Werte[i]);
       Serial.print( "\t");
@@ -149,16 +157,20 @@ ISR(TIMER1_COMPA_vect) {
     {
       FahrtWatchDog = 0;                                      // Watch-Dog Zähler reset
       if ( StopWunsch && (Sensoren[i]==StopLS) ){             // Wenn Stop-Wunsch und entsprechende Lichtschranke   ...
-        AktSpeed = 0;                                         //  -> Stop     
+        AktSpeed = 0; 
+        Gestoppt = true;                                        //  -> Stop     
       }
       else
       {
-        AktSpeed = Abschnitt_speed[i];                        // Ansonsten übernehe die Abschnittsgeschwindigkeit
+        if (!Gestoppt)                      //wenn nach stoppwunsch nicht gestoppt
+        {
+          AktSpeed = Abschnitt_speed[i];    // übernehe die Abschnittsgeschwindigkeit
+        }                        
       }
     }
     analogWrite(BahnPin, AktSpeed);                           // Setze PWM
   }
   
-  if ( TestPrint ) { Serial.println( "");  }
+  if ( TestPrintSensoren ) { Serial.println( "");  }
 
 }
