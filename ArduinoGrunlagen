@@ -1,0 +1,25 @@
+Arduino Grundlagen:
+
+  1)Pins
+    -Analog
+    -Digital
+    -Kommunikation
+     -Seriell (Tx, Rx)
+     -I2C (SDA, SCL)
+     -SPI (...)
+    -Power
+    
+    1.1) Digitale Pins
+      -digitalWrite(<Pin>,<Wert>);
+      -int v = digitalRead(<Pin>);
+      -pinMode(<Pin>,<Mode>);
+        Mode: OUTPUT, INPUT, INPUT_PULLUP
+      -analogWrite(<Pin>,<PWM Wert>);  
+      
+    1.2) Analoge Pins
+       - int v = analogRead(<Pin>);
+         c : 0-1023
+  2)Wichtige Funktionen
+   -void setup(){...}
+   -void loop(){...}
+      
