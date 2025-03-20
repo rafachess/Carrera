@@ -16,7 +16,7 @@ boolean connected = false;
 // ControlP5 GUI-Elemente
 ControlP5 cp5;
 DropdownList portList;
-Button connectButton, sendButton, stopButton, startButton;
+Button  actButton, connectButton, sendButton, stopButton, startButton;
 Slider slider1, slider2, slider3, slider4, slider5;
 
 void setup() {
@@ -36,22 +36,25 @@ void setup() {
 
   // Dropdown-Liste für Ports
   portList = cp5.addDropdownList("ports")
-                .setPosition(10, 20)
-                .setSize(180, 100)
+                .setPosition(10, 80)
+                .setSize(180, 50)
                 .setLabel("Wähle Port")
                 .moveTo(connectionGroup);
 
   // Ports in Dropdown einfügen
-  String[] ports = Serial.list();
-  for (int i = 0; i < ports.length; i++) {
-    portList.addItem(ports[i], i);
-  }
+  actPorts();
 
-  // Knopf für Verbindung
+  
+  actButton = cp5.addButton("actPorts")
+                     .setLabel("Aktualisieren")
+                     .setPosition(10, 20)
+                     .setSize(180, 20)
+                     .moveTo(connectionGroup);
+                     
   connectButton = cp5.addButton("connect")
                      .setLabel("Verbinden")
-                     .setPosition(10, 130)
-                     .setSize(180, 30)
+                     .setPosition(10, 50)
+                     .setSize(180, 20)
                      .moveTo(connectionGroup);
 
   // Schieberegler und Knopf rechts vom Tachometer
@@ -166,7 +169,20 @@ void draw() {
     text("Nicht verbunden", 20, height - 20);
   }
 }
+public void actPorts() {
+  portList.clear();
+  portList.setLabel("Wähle Port");
+  
+  //for (int i = portList.getItems().size() - 1; i >= 0; i--) {
+  //  portList.removeItem(portList.item(i));
+  //}
 
+
+  String[] ports = Serial.list();
+  for (int i = 0; i < ports.length; i++) {
+    portList.addItem(ports[i], i);
+  }
+}
 // Verbindung herstellen oder trennen
 public void connect() {
   if (connected) {
