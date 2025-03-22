@@ -1,8 +1,10 @@
-import processing.serial.*; //<>// //<>// //<>// //<>// //<>// //<>//
+import processing.serial.*; 
 import controlP5.*;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.io.IOException;
+
+String AktAuto ="auto1.txt"; 
 
 // Serielle Schnittstelle
 Serial myPort;
@@ -16,11 +18,11 @@ boolean connected = false;
 // ControlP5 GUI-Elemente
 ControlP5 cp5;
 DropdownList portList;
-Button  actButton, connectButton, sendButton, stopButton, startButton;
+Button actButton, connectButton, sendButton, stopButton, startButton, Auto1, Auto2, Auto3, Auto4;
 Slider slider1, slider2, slider3, slider4, slider5;
 
 void setup() {
-  size(1000, 500); // Breiterer Sketch für Tachometer und GUI
+  size(1000, 800); // Breiterer Sketch für Tachometer und GUI
   background(255);
 
   // Initialisiere die GUI
@@ -36,34 +38,32 @@ void setup() {
 
   // Dropdown-Liste für Ports
   portList = cp5.addDropdownList("ports")
-                .setPosition(10, 80)
-                .setSize(180, 50)
+                .setPosition(10, 20)
+                .setSize(180, 100)
                 .setLabel("Wähle Port")
                 .moveTo(connectionGroup);
 
-  // Ports in Dropdown einfügen
   actPorts();
 
-  
   actButton = cp5.addButton("actPorts")
                      .setLabel("Aktualisieren")
                      .setPosition(10, 20)
                      .setSize(180, 20)
-                     .moveTo(connectionGroup);
+                     .moveTo(verbingung);
                      
   connectButton = cp5.addButton("connect")
                      .setLabel("Verbinden")
-                     .setPosition(10, 50)
-                     .setSize(180, 20)
+                     .setPosition(10, 130)
+                     .setSize(180, 30)
                      .moveTo(connectionGroup);
 
   // Schieberegler und Knopf rechts vom Tachometer
   Group sliderGroup = cp5.addGroup("sliderGroup")
                           .setLabel("Abschnittsgeschwindigkeiten")
                           .setPosition(670, 20)
-                          .setSize(300, 400)
+                          .setSize(300, 600)
                           .setBackgroundColor(color(0,120,0))
-                          .setBackgroundHeight(400);
+                          .setBackgroundHeight(600);
 
   slider1 = cp5.addSlider("V1")
                .setLabel("Loop")  // Label setzen
@@ -100,6 +100,12 @@ void setup() {
                .setRange(0, 255)
                .moveTo(sliderGroup);
 
+  //slider1 = createSlider("V1", "Loop", 10, 20, sliderGroup);
+  //slider2 = createSlider("V2", "Kurve Ende", 10, 60, sliderGroup);
+  //slider3 = createSlider("V3", "Steilkurve", 10, 100, sliderGroup);
+  //slider4 = createSlider("V4", "Looping Ende", 10, 140, sliderGroup);
+  //slider5 = createSlider("V5", "Kurve Anfang", 10, 180, sliderGroup);
+
   sendButton = cp5.addButton("sendData")
                   .setLabel("Senden")
                   .setPosition(10, 230)
@@ -118,8 +124,46 @@ void setup() {
                   .setSize(200, 30)
                   .moveTo(sliderGroup);
                   
-  loadSliderValues();
+    Auto1 = cp5.addButton("auto1")
+                  .setLabel("Auto5")
+                  .setPosition(10, 400)
+                  .setSize(100, 30)
+                  .moveTo(sliderGroup);
+                  
+    Auto2 = cp5.addButton("auto2")
+                  .setLabel("Auto44")
+                  .setPosition(120, 400)
+                  .setSize(100, 30)
+                  .moveTo(sliderGroup);
+     Auto3 = cp5.addButton("auto3")
+                  .setLabel("SR")
+                  .setPosition(10, 440)
+                  .setSize(100, 30)
+                  .moveTo(sliderGroup);
+      Auto4 = cp5.addButton("auto4")
+                  .setLabel("Camera")
+                  .setPosition(120, 440)
+                  .setSize(100, 30)
+                  .moveTo(sliderGroup);
+                  
+  loadSliderValues(AktAuto);
   
+}
+
+void auto1(){ 
+  loadSliderValues("auto1.txt"); 
+}
+
+void auto2(){ 
+  loadSliderValues("auto2.txt"); 
+}
+  
+void auto3(){ 
+  loadSliderValues("auto3.txt"); 
+}
+
+void auto4(){ 
+  loadSliderValues("auto4.txt"); 
 }
 
 void draw() {
@@ -169,20 +213,7 @@ void draw() {
     text("Nicht verbunden", 20, height - 20);
   }
 }
-public void actPorts() {
-  portList.clear();
-  portList.setLabel("Wähle Port");
-  
-  //for (int i = portList.getItems().size() - 1; i >= 0; i--) {
-  //  portList.removeItem(portList.item(i));
-  //}
 
-
-  String[] ports = Serial.list();
-  for (int i = 0; i < ports.length; i++) {
-    portList.addItem(ports[i], i);
-  }
-}
 // Verbindung herstellen oder trennen
 public void connect() {
   if (connected) {
@@ -230,15 +261,16 @@ public void sendData() {
     println("Gesendet: " + protocol);
     // Werte in Datei speichern
     String saveData = v1 + "," + v2 + "," + v3 + "," + v4 + "," + v5;
-    saveStrings("carrera_werte.txt", new String[]{saveData});
+    saveStrings(AktAuto, new String[]{saveData});
     println("Slider-Werte gespeichert: " + saveData);
   } else {
     println("Keine Verbindung zur seriellen Schnittstelle.");
   }
 }
 
-void loadSliderValues() {
-  String[] loadedData = loadStrings("carrera_werte.txt");
+void loadSliderValues( String Datei) {
+  AktAuto=Datei;
+  String[] loadedData = loadStrings(Datei);
 
   if (loadedData != null && loadedData.length > 0) {
     String[] values = split(loadedData[0], ',');
@@ -290,4 +322,22 @@ void serialEvent(Serial myPort) {
       println("Fehler beim Parsen der Geschwindigkeit: " + e.getMessage());
     }
   }
+}
+
+void actPorts() {
+  portList.clear();
+  portList.setLabel("Wähle Port");
+  String[] ports = Serial.list();
+  for (int i = 0; i < ports.length; i++) {
+    portList.addItem(ports[i], i);
+  }
+}
+
+Slider createSlider(String name, String label, int x, int y, Group group) {
+  return cp5.addSlider(name)
+            .setLabel(label)
+            .setPosition(x, y)
+            .setSize(200, 20)
+            .setRange(0, 255)
+            .moveTo(group);
 }

@@ -8,16 +8,16 @@ bool TestPrintSensoren=0;                                 // Zum Steuern von Tes
 bool TestPrintAktSpeed=1;                                  // Zum Steuern von Testausgabe der Akt Geschw. Werte
 bool TestPrint=0;                                          // Zum Steuern von Testausgabe der Werte
 
-const int BahnPin = 7;                                        // Arduino-Pin für PWM
+const int BahnPin = 45;                                        // Arduino-Pin für PWM
 int StartSpeed = 120;                                         // Konstante für Anfangsgeschwindigkeit
 volatile int FahrtWatchDog = 0;                               // Watch-Dog Zähler. Zum Stoppen, wenn keine LS nach 2s ausgelöst
 volatile bool StopWunsch = false;                             // Stop-Knopf in Prozessing signalisiert nur den Stop-Wunsch
 volatile bool Gestoppt = false;                               // StopWunsch abgearbeitet. Wenn aus Trägheit weitere LS überquerrt wird, ignorieren
 
                                                               // Stoppen im Looping oder Steilkurve ist jedoch gefährlich
-const int StopLS= 5;                                          // Lichtschranke, nach der gestoppt wird (bei Stop-Wunsch)
+const int StopLS= 3;                                          // Lichtschranke, nach der gestoppt wird (bei Stop-Wunsch)
 
-const int Sensoren[] = {2,3,4,5,6};                           // Arduino Pins, wo die Sensoren angeschlossen sind
+const int Sensoren[] = {31,39,33,37,35};                           // Arduino Pins, wo die Sensoren angeschlossen sind
 
 volatile byte LS_Werte[] = {0,0,0,0,0};                       // Werte der Sensoren (an/aus)
 volatile byte Abschnitt_speed[] = {0,0,0,0,0};                // Geschwindigkeit, die nach den jeweiligen Sensor gesetzt wird
@@ -40,7 +40,7 @@ void setup()                                                  // Arduino Setup-F
   {
     pinMode(s, INPUT_PULLUP);                                 
   }
-
+  
                                                               // Timer-Interrupt mit 1ms Periode konfigurieren
   noInterrupts();                                             // Weiterhin folgt eine Magie, die micht mal ChatGPT
   TCCR1A = 0;                                                 // beherrscht. 
@@ -144,6 +144,7 @@ ISR(TIMER1_COMPA_vect) {
     AktSpeed = 0;
   }
 
+
   for (int i = 0; i < SensorenAnz; i++) {                    // Prüfe alle Sensoren
     LS_Werte[i] = digitalRead(Sensoren[i]);
   
@@ -156,7 +157,7 @@ ISR(TIMER1_COMPA_vect) {
     if (LS_Werte[i] == 1)                                     // Wenn Lichtschranke AN
     {
       FahrtWatchDog = 0;                                      // Watch-Dog Zähler reset
-      if ( StopWunsch && (Sensoren[i]==StopLS) ){             // Wenn Stop-Wunsch und entsprechende Lichtschranke   ...
+      if ( StopWunsch && (i==StopLS) ){             // Wenn Stop-Wunsch und entsprechende Lichtschranke   ...
         AktSpeed = 0; 
         Gestoppt = true;                                        //  -> Stop     
       }
