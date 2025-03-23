@@ -1,8 +1,16 @@
-import processing.serial.*; 
+import processing.serial.*;  //<>//
 import controlP5.*;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.io.IOException;
+
+import ddf.minim.*;
+import ddf.minim.signals.*;
+
+Minim minim;
+AudioOutput out;
+SineWave sine;
+AudioPlayer player;
 
 String AktAuto ="auto1.txt"; 
 
@@ -24,6 +32,8 @@ Slider slider1, slider2, slider3, slider4, slider5;
 void setup() {
   size(1000, 800); // Breiterer Sketch für Tachometer und GUI
   background(255);
+  minim = new Minim(this);
+  out = minim.getLineOut();
 
   // Initialisiere die GUI
   cp5 = new ControlP5(this);
@@ -38,7 +48,7 @@ void setup() {
 
   // Dropdown-Liste für Ports
   portList = cp5.addDropdownList("ports")
-                .setPosition(10, 20)
+                .setPosition(10, 50)
                 .setSize(180, 100)
                 .setLabel("Wähle Port")
                 .moveTo(connectionGroup);
@@ -49,7 +59,7 @@ void setup() {
                      .setLabel("Aktualisieren")
                      .setPosition(10, 20)
                      .setSize(180, 20)
-                     .moveTo(verbingung);
+                     .moveTo(connectionGroup);
                      
   connectButton = cp5.addButton("connect")
                      .setLabel("Verbinden")
@@ -112,13 +122,13 @@ void setup() {
                   .setSize(200, 30)
                   .moveTo(sliderGroup);
   
-  stopButton = cp5.addButton("stop")
+  stopButton = cp5.addButton("stopAuto")
                   .setLabel("Stop")
                   .setPosition(10, 280)
                   .setSize(200, 30)
                   .moveTo(sliderGroup);
   
-  startButton = cp5.addButton("start")
+  startButton = cp5.addButton("startAuto")
                   .setLabel("Start")
                   .setPosition(10, 330)
                   .setSize(200, 30)
@@ -287,9 +297,10 @@ void loadSliderValues( String Datei) {
   }
 }
 
-public void stop() {
-  if (connected) {
-    
+public void stopAuto() {
+  player.close();
+  minim.stop();
+  if (connected) {    
     String protocol = "stop" ;
     myPort.write(protocol + "\n");
     println("Gesendet: " + protocol);
@@ -298,12 +309,41 @@ public void stop() {
   }
 }
 
-public void start() {
+void stop() {
+  player.close();
+  minim.stop();
+  super.stop();
+}
+
+public void startAuto() {
   if (connected) {
     sendData();  // Immer davor aktuelle Werte setzen
     
+
+    for( int i=0; i<3; i++ ){
+      sine = new SineWave(440, 0.2, out.sampleRate());
+      sine.portamento(5);
+      out.addSignal(sine);
+      delay(200);
+      out.removeSignal(sine);
+      delay(1000);
+    }
+    
+    sine = new SineWave(640, 0.2, out.sampleRate());
+    sine.portamento(5);
+    out.addSignal(sine);
+    delay(200);
+    out.removeSignal(sine);
+    
     String protocol = "start" ;
     myPort.write(protocol + "\n");
+    
+    int trackNumber = (int)random(2, 10); // 10 is exclusive, so gives 1–9
+    String filename = "music/m" + trackNumber + ".mp3";      
+    player = minim.loadFile(filename);
+    player.rewind();
+    player.play();
+  
     println("Gesendet: " + protocol);
   } else {
     println("Keine Verbindung zur seriellen Schnittstelle.");

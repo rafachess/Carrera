@@ -4,20 +4,20 @@
 // Version 1.0
 
 
-bool TestPrintSensoren=0;                                 // Zum Steuern von Testausgabe der Sensor-Werte
-bool TestPrintAktSpeed=1;                                  // Zum Steuern von Testausgabe der Akt Geschw. Werte
-bool TestPrint=0;                                          // Zum Steuern von Testausgabe der Werte
+bool TestPrintSensoren=0;                                     // Zum Steuern von Testausgabe der Sensor-Werte
+bool TestPrintAktSpeed=1;                                     // Zum Steuern von Testausgabe der Akt Geschw. Werte
+bool TestPrint=0;                                             // Zum Steuern von Testausgabe der Werte
 
-const int BahnPin = 45;                                        // Arduino-Pin für PWM
+const int BahnPin = 45;                                       // Arduino-Pin für PWM
 int StartSpeed = 120;                                         // Konstante für Anfangsgeschwindigkeit
 volatile int FahrtWatchDog = 0;                               // Watch-Dog Zähler. Zum Stoppen, wenn keine LS nach 2s ausgelöst
 volatile bool StopWunsch = false;                             // Stop-Knopf in Prozessing signalisiert nur den Stop-Wunsch
-volatile bool Gestoppt = false;                               // StopWunsch abgearbeitet. Wenn aus Trägheit weitere LS überquerrt wird, ignorieren
+volatile bool Gestoppt = true;                                // StopWunsch abgearbeitet. Wenn aus Trägheit weitere LS überquerrt wird, ignorieren
 
                                                               // Stoppen im Looping oder Steilkurve ist jedoch gefährlich
 const int StopLS= 3;                                          // Lichtschranke, nach der gestoppt wird (bei Stop-Wunsch)
 
-const int Sensoren[] = {31,39,33,37,35};                           // Arduino Pins, wo die Sensoren angeschlossen sind
+const int Sensoren[] = {31,39,33,37,35};                      // Arduino Pins, wo die Sensoren angeschlossen sind
 
 volatile byte LS_Werte[] = {0,0,0,0,0};                       // Werte der Sensoren (an/aus)
 volatile byte Abschnitt_speed[] = {0,0,0,0,0};                // Geschwindigkeit, die nach den jeweiligen Sensor gesetzt wird
@@ -108,11 +108,22 @@ void speedwerte_von_processing(String input) {                //Funktion interpr
   else if (input.startsWith("stop")) {    
     StopWunsch = true;    
   }
-  else if (input.startsWith("start")) {    
+  else if (input.startsWith("start")) {  
+    input = input.substring(5);                                   // Entferne "start" aus dem String
+    input.trim();                                                 // Entferne führende und nachgestellte Leerzeichen
+    
+    if (input.length() > 0 ) {                                    // Wenn Processing Anfangsgeschwindigkeit übergibt...
+      int StartSpeedProcessing = value.toInt();                   // ... nutze sie
+      AktSpeed = StartSpeedProcessing;
+    }
+    else{
+      AktSpeed = StartSpeed;
+    }
+
     StopWunsch = false;
     Gestoppt = false;
     FahrtWatchDog = 0;
-    AktSpeed = StartSpeed;
+    
     analogWrite(BahnPin, AktSpeed);    
   }
 
@@ -157,15 +168,15 @@ ISR(TIMER1_COMPA_vect) {
     if (LS_Werte[i] == 1)                                     // Wenn Lichtschranke AN
     {
       FahrtWatchDog = 0;                                      // Watch-Dog Zähler reset
-      if ( StopWunsch && (i==StopLS) ){             // Wenn Stop-Wunsch und entsprechende Lichtschranke   ...
+      if ( StopWunsch && (i==StopLS) ){                       // Wenn Stop-Wunsch und entsprechende Lichtschranke   ...
         AktSpeed = 0; 
-        Gestoppt = true;                                        //  -> Stop     
+        Gestoppt = true;                                      //  -> Stop     
       }
       else
       {
-        if (!Gestoppt)                      //wenn nach stoppwunsch nicht gestoppt
+        if (!Gestoppt)                                        //wenn nach stoppwunsch nicht gestoppt
         {
-          AktSpeed = Abschnitt_speed[i];    // übernehe die Abschnittsgeschwindigkeit
+          AktSpeed = Abschnitt_speed[i];                      // übernehe die Abschnittsgeschwindigkeit
         }                        
       }
     }
